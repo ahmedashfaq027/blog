@@ -1,7 +1,7 @@
 import { Request, Response, Router } from 'express';
 import multer from 'multer';
 import { addBlogPost, getAllPosts, getCoverImage, getPopularPosts, getPost, getRelatedPosts, postView, updateBlogPost } from '../controllers/BlogController';
-import { validateAccessToken } from '../middlewares/auth';
+import { checkAndValidateAccessToken, validateAccessToken } from '../middlewares/auth';
 import { internalServerError } from '../utils/responses';
 import path from 'path';
 
@@ -11,14 +11,24 @@ const storage = multer.diskStorage({
         cb(null, path.join(__dirname, '../../../../uploads'));
     },
     filename: (req: Request, file: Express.Multer.File, cb) => {
-        cb(null, file.fieldname + '-' + Date.now());
+        cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname));
     }
 });
 
-const upload = multer({ storage: storage });
+const upload = multer({
+    storage: storage,
+    fileFilter(req: Request, file: Express.Multer.File, cb) {
+        const ext = path.extname(file.originalname);
+        if (ext === '.png' || ext === '.jpg' || ext === '.gif' || ext === '.jpeg') {
+            return cb(null, true);
+        }
+
+        return cb(new Error('Only images are allowed'));
+    },
+}).single('coverImage');
 
 // Protected routes
-router.patch('/admin/edit/:id', validateAccessToken, upload.single('coverImage'), async (req: Request, res: Response) => {
+router.patch('/admin/edit/:id', checkAndValidateAccessToken, upload, async (req: Request, res: Response) => {
     try {
         await updateBlogPost(req, res);
     } catch (err: any) {
@@ -26,7 +36,7 @@ router.patch('/admin/edit/:id', validateAccessToken, upload.single('coverImage')
     }
 });
 
-router.post('/admin/add', validateAccessToken, upload.single('coverImage'), async (req: Request, res: Response) => {
+router.post('/admin/add', checkAndValidateAccessToken, upload, async (req: Request, res: Response) => {
     try {
         await addBlogPost(req, res);
     } catch (err: any) {
@@ -34,7 +44,7 @@ router.post('/admin/add', validateAccessToken, upload.single('coverImage'), asyn
     }
 });
 
-router.get('/admin/all', validateAccessToken, async (req: Request, res: Response) => {
+router.get('/admin/all', checkAndValidateAccessToken, async (req: Request, res: Response) => {
     try {
         await getAllPosts(req, res);
     } catch (err: any) {
@@ -42,7 +52,7 @@ router.get('/admin/all', validateAccessToken, async (req: Request, res: Response
     }
 });
 
-router.get('/admin/:id', validateAccessToken, async (req: Request, res: Response) => {
+router.get('/admin/:id', checkAndValidateAccessToken, async (req: Request, res: Response) => {
     try {
         await getPost(req, res, true);
     } catch (err: any) {

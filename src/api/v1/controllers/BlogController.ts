@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import fs from 'fs';
+import path from 'path';
 import { error, HTTP, HTTP_DESC, ResponseV1, Status, success } from "../../../types";
 import Blog from "../models/blog";
 import { BlogStatus } from "../types/blog";
@@ -15,11 +15,6 @@ export const addBlogPost = async (req: Request, res: Response) => {
         } as ResponseV1);
     }
 
-    const image = fs.readFileSync(req.file.path);
-    const coverImage = {
-        data: Buffer.from(image.toString('base64'), 'base64'),
-        contentType: req.file.mimetype
-    };
     const { title, content, tags } = req.body;
     const status: keyof typeof BlogStatus = req.body.status;
 
@@ -28,7 +23,7 @@ export const addBlogPost = async (req: Request, res: Response) => {
         title: title,
         content: content,
         tags: tags.split(','),
-        coverImage: coverImage,
+        coverImage: (req.file.path ?? ''),
         status: status ?? BlogStatus.DRAFT
     });
 
@@ -57,39 +52,34 @@ export const updateBlogPost = async (req: Request, res: Response) => {
     const { title, content, tags } = req.body;
     const status: keyof typeof BlogStatus = req.body.status;
 
-    let updatedBlog: any = {
+    let updatedBlogContent: any = {
         title: title,
         content: content,
-        tags: tags.split(",")
+        tags: tags.split(","),
+        status: status
     };
 
     if (req.file) {
-        const image = fs.readFileSync(req.file.path);
-        const coverImage = {
-            data: Buffer.from(image.toString('base64'), 'base64'),
-            contentType: req.file.mimetype
-        };
-        updatedBlog.coverImage = coverImage;
+        updatedBlogContent.coverImage = (req.file.path ?? '');
     }
 
-    await Blog.findOneAndUpdate({ id: id }, updatedBlog, {}, (err, result) => {
-        if (err) {
-            console.error(err);
-            return res.status(HTTP.FORBIDDEN).json({
-                status: Status.Error,
-                statusCode: HTTP.FORBIDDEN,
-                statusMessage: HTTP_DESC.FORBIDDEN,
-                data: { message: 'Failed to add the blog', error: err } as error
-            } as ResponseV1);
-        }
+    const updatedBlog = await Blog.findOneAndUpdate({ id: id }, updatedBlogContent);
 
-        return res.status(HTTP.OK).json({
-            status: Status.Success,
-            statusCode: HTTP.OK,
-            statusMessage: HTTP_DESC.OK,
-            data: { message: 'Blog updated successfully' } as success
+    if (!updatedBlog) {
+        return res.status(HTTP.FORBIDDEN).json({
+            status: Status.Error,
+            statusCode: HTTP.FORBIDDEN,
+            statusMessage: HTTP_DESC.FORBIDDEN,
+            data: { message: 'Failed to add the blog' } as error
         } as ResponseV1);
-    });
+    }
+
+    return res.status(HTTP.OK).json({
+        status: Status.Success,
+        statusCode: HTTP.OK,
+        statusMessage: HTTP_DESC.OK,
+        data: { message: 'Blog updated successfully', data: updatedBlog } as success
+    } as ResponseV1);
 }
 
 export const getAllPosts = async (req: Request, res: Response) => {
@@ -138,29 +128,36 @@ export const getPopularPosts = async (req: Request, res: Response) => {
     const page: number = Number(queryParams.page as string ?? 1);
     const limit: number = Number(queryParams.limit as string ?? 10);
 
-    const data = await Blog.find({}, { _id: 0, __v: 0, views: 0, coverImage: 0 })
-        .sort({ views: "desc" })
-        .limit(limit * 1)
-        .skip((page - 1) * limit)
-        .exec();
+    const popularPosts = await Blog.aggregate([
+        {
+            $project: { id: 1, title: 1, content: 1, coverImage: 1, status: 1, 'length': { '$size': '$views' } }
+        },
+        {
+            $match: { status: BlogStatus.PUBLISHED }
+        },
+        {
+            $sort: { 'length': 1 }
+        }
+    ]);
 
     return res.status(HTTP.OK).json({
         status: Status.Success,
         statusCode: HTTP.OK,
         statusMessage: HTTP_DESC.OK,
-        data: { data: data, message: 'Successfully fetched popular posts' } as success
+        data: { data: popularPosts, message: 'Successfully fetched popular posts' } as success
     } as ResponseV1);
 }
 
 export const getCoverImage = async (req: Request, res: Response) => {
     const { id } = req.params;
-    const data = await Blog.findOne({ id: id }, { _id: 0, __v: 0, views: 0, content: 0, status: 0, tags: 0, title: 0, createdAt: 0, updatedAt: 0 });
-    const img = data?.coverImage;
+    const existingPost = await Blog.findOne({ id: id }, { _id: 0, __v: 0, views: 0, content: 0, status: 0, tags: 0, title: 0, createdAt: 0, updatedAt: 0 });
+    const img = existingPost?.coverImage;
 
-    if (img && img.data && img.contentType) {
+
+    if (img) {
         return res.status(HTTP.OK)
-            .header('Content-Type', img.contentType)
-            .end(new Buffer(img.data));
+            .header('Content-Type', path.extname(img))
+            .sendFile(img);
     }
 
     return res.status(HTTP.NOT_FOUND).json({
@@ -173,26 +170,23 @@ export const getCoverImage = async (req: Request, res: Response) => {
 
 export const postView = async (req: Request, res: Response) => {
     const { id } = req.params;
+    const updatedBlog = await Blog.updateOne({ id: id }, { $addToSet: { views: String(req.ip) } });
 
-    await Blog.findOneAndUpdate({ id: id }, { $inc: { views: 1 } })
-        .exec((err, result) => {
-            if (err) {
-                console.error(err);
-                return res.status(HTTP.FORBIDDEN).json({
-                    status: Status.Error,
-                    statusCode: HTTP.FORBIDDEN,
-                    statusMessage: HTTP_DESC.FORBIDDEN,
-                    data: { message: 'Failed to post the view', error: err } as error
-                } as ResponseV1);
-            }
+    if (!updatedBlog) {
+        return res.status(HTTP.FORBIDDEN).json({
+            status: Status.Error,
+            statusCode: HTTP.FORBIDDEN,
+            statusMessage: HTTP_DESC.FORBIDDEN,
+            data: { message: 'Failed to post the view', data: updatedBlog } as error
+        } as ResponseV1);
+    }
 
-            return res.status(HTTP.OK).json({
-                status: Status.Success,
-                statusCode: HTTP.OK,
-                statusMessage: HTTP_DESC.OK,
-                data: { message: 'View posted successfully' } as success
-            } as ResponseV1);
-        });
+    return res.status(HTTP.OK).json({
+        status: Status.Success,
+        statusCode: HTTP.OK,
+        statusMessage: HTTP_DESC.OK,
+        data: { message: 'View posted successfully', data: updatedBlog } as success
+    } as ResponseV1);
 }
 
 export const getRelatedPosts = async (req: Request, res: Response) => {

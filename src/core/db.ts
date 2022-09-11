@@ -1,4 +1,4 @@
-import mongoose, { ConnectOptions } from 'mongoose';
+import mongoose from 'mongoose';
 import { LOG } from '../types';
 
 export const connectToDatabase = (connectionString: string) => {

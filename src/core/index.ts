@@ -1,8 +1,6 @@
 import express, { Application, NextFunction, Request, Response } from 'express';
 import cors from 'cors';
-import path from 'path';
 import { error, HTTP, HTTP_DESC, LOG, ResponseV1, Status, success } from '../types';
-import e from 'express';
 
 // Routes
 import authRoute from '../api/v1/routes/auth';

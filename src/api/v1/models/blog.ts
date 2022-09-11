@@ -15,22 +15,14 @@ const blogSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    tags: [{
-        type: String
-    }],
-    coverImage: {
-        data: Buffer,
-        contentType: String
-    },
     status: {
         type: String,
         required: true,
         enum: BlogStatus
     },
-    views: {
-        type: Number,
-        default: 0
-    }
+    coverImage: String,
+    tags: [String],
+    views: { type: [String], default: [] }
 }, { timestamps: true });
 
 export default mongoose.model('Blog', blogSchema)
