@@ -5,10 +5,10 @@ import { KEYS, JWTResponse } from './types'
 import { LOG } from '../types';
 
 enum KEYS_PATH {
-    PRIVATE_KEY = '../keys/private.pem',
-    PUBLIC_KEY = '../keys/public.pem',
-    PRIVATER_KEY = '../keys/privater.pem',
-    PUBLICR_KEY = '../keys/publicr.pem'
+    PRIVATE_KEY = '../../keys/private.pem',
+    PUBLIC_KEY = '../../keys/public.pem',
+    PRIVATER_KEY = '../../keys/privater.pem',
+    PUBLICR_KEY = '../../keys/publicr.pem'
 }
 
 export class JWTHandler {
@@ -52,7 +52,7 @@ export class JWTHandler {
     }
 
     generateJWT = (payload: string | object, secret: jwt.Secret, expiresIn: string): string => {
-        return jwt.sign(payload, secret, { algorithm: 'RS256', expiresIn: expiresIn })
+        return jwt.sign({ payload }, secret, { algorithm: 'RS256', expiresIn });
     }
 
     generateAccessToken = async (authId: string) => {

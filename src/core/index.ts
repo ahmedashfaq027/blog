@@ -41,28 +41,22 @@ const handleInvalidRoutes = (app: Application) => {
 const configureServer = (app: Application) => {
     console.info(`${LOG.INIT} Configuring Server`);
 
-    app.use(express.json);
+    app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
     app.use(cors());
 
     // Request logging
     app.use((req: Request, _, next: NextFunction) => {
-        if (!req.body.includes('/uploads')) {
-            console.log(`\nReq: ${req.method} ${req.url} ${new Date().toString()} ${req.connection?.remoteAddress}`)
-        }
-
+        console.log(`\nReq: ${req.method} ${req.url} ${new Date().toString()} ${req.connection?.remoteAddress}`);
         next();
-    })
+    });
+
+    setRoutes(app);
 }
 
 export const initializeServer = (app: Application, port: number) => {
     configureServer(app);
 
     console.info(`${LOG.INIT} Starting up server`);
-    app.listen(port, () => console.info(`${LOG.SUCCESS} Listening on port ${port}`))
-    app.get('/', (req, res) => res.status(HTTP.OK).json({
-        status: Status.Success,
-        statusCode: HTTP.OK,
-        data: { message: 'Hi' } as success
-    } as ResponseV1))
+    app.listen(port, () => console.info(`${LOG.SUCCESS} Listening on port ${port}`));
 }

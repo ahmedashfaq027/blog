@@ -1,1 +1,8 @@
 node_modules
+uploads/*
+test
+keys/private.pem
+keys/privater.pem
+keys/public.pem
+keys/publicr.pem
+.env

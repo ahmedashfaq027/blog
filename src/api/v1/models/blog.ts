@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { BlogStatus } from "../types/blog";
 
 const blogSchema = new mongoose.Schema({
     id: {
@@ -14,28 +15,21 @@ const blogSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    tags: {
-        type: Array<String>,
-        required: true
-    },
+    tags: [{
+        type: String
+    }],
     coverImage: {
         data: Buffer,
         contentType: String
     },
+    status: {
+        type: String,
+        required: true,
+        enum: BlogStatus
+    },
     views: {
         type: Number,
         default: 0
-    },
-    writtenOn: {
-        type: Date,
-        required: true,
-        default: Date.now(),
-
-    },
-    modifiedOn: {
-        type: Date,
-        required: true,
-        default: Date.now()
     }
 }, { timestamps: true });
 

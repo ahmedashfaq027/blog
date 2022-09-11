@@ -23,18 +23,18 @@ export const registerWithEmail = async (req: Request, res: Response) => {
     // Register user
     const newAuthUser = new Auth({
         email: req.body.email,
-        password: hashPassword(req.body.password),
-        name: req.body.name ?? ''
+        password: await hashPassword(req.body.password),
+        name: req.body?.name ?? ''
     });
 
-    await newAuthUser.save((error, result) => {
-        if (error) {
-            console.error(error);
+    await newAuthUser.save((err, result) => {
+        if (err) {
+            console.error(err);
             return res.status(HTTP.FORBIDDEN).json({
                 status: Status.Error,
                 statusCode: HTTP.FORBIDDEN,
                 statusMessage: HTTP_DESC.FORBIDDEN,
-                data: { message: 'Could not save user in the DB', error: new Error('Failed') } as error
+                data: { message: 'Could not save user in the DB', error: err } as error
             } as ResponseV1);
         }
 
@@ -49,7 +49,7 @@ export const registerWithEmail = async (req: Request, res: Response) => {
 
 export const loginWithEmail = async (req: Request, res: Response) => {
     // Check if user exists
-    let authUser = await getUserByEmail(req.body.email);
+    const authUser = await getUserByEmail(req.body.email);
     if (!authUser) {
         return res.status(HTTP.BAD_REQUEST).json({
             status: Status.Error,
@@ -70,16 +70,16 @@ export const loginWithEmail = async (req: Request, res: Response) => {
     }
 
     authUser.refreshToken = await createNewRefreshToken(authUser);
-    const accessToken = await jwtHandler.generateAccessToken(String(authUser?._id))
+    const accessToken = await jwtHandler.generateAccessToken(String(authUser._id))
 
-    await authUser.save((error, result) => {
-        if (error) {
-            console.error(error);
+    await authUser.save((err, result) => {
+        if (err) {
+            console.error(err);
             return res.status(HTTP.FORBIDDEN).json({
                 status: Status.Error,
                 statusCode: HTTP.FORBIDDEN,
                 statusMessage: HTTP_DESC.FORBIDDEN,
-                data: { message: 'Failed to login the user', error: new Error('Failed') } as error
+                data: { message: 'Failed to login the user', error: err } as error
             } as ResponseV1);
         }
 
@@ -114,7 +114,7 @@ const createNewRefreshToken = async (authUser: any) => {
 
         if (refreshTokenVerification.valid) {
             const refreshTokenData = refreshTokenVerification.data as JwtPayload
-            let timeToExpire = refreshTokenData.exp! - Date.now() / 1000;
+            const timeToExpire = refreshTokenData.exp! - Date.now() / 1000;
 
             if (timeToExpire > 0) {
                 if (timeToExpire / 86400 > 2) {
@@ -124,5 +124,5 @@ const createNewRefreshToken = async (authUser: any) => {
         }
     }
 
-    return await jwtHandler.generateRefreshToken(authUser._id);
+    return await jwtHandler.generateRefreshToken(String(authUser._id));
 }

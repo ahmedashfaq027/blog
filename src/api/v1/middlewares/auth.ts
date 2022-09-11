@@ -133,9 +133,9 @@ const validateRegisterOrLoginFields = (req: Request, res: Response, next: NextFu
 const sendError = (message: string, error: Error, res: Response, statusCode: HTTP, statusMessage: HTTP_DESC) => {
     const response: ResponseV1 = {
         status: Status.Error,
-        statusCode: statusCode,
-        statusMessage: statusMessage,
-        data: { message: message, error: error } as error
+        statusCode,
+        statusMessage,
+        data: { message, error } as error
     }
 
     return res.status(statusCode).json(response);
